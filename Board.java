@@ -2,6 +2,8 @@ package org.cis120.tetris;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -32,8 +34,10 @@ public class Board extends JPanel {
     private int blockWidth;
     private int blockHeight;
     private int rowClear;
-    private PieceSequence pieces;
+    private LinkedList<Integer> clearRows = new LinkedList<Integer>();
+    private PieceSequence pieces = new PieceSequence();
     private Piece current;
+    private PropertyChangeSupport next = new PropertyChangeSupport(this);
 
     // Game constants
     public static final int COURT_WIDTH = 300;
@@ -89,6 +93,8 @@ public class Board extends JPanel {
                 } else if (e.getKeyCode() == KeyEvent.VK_SPACE && current.isMoving()) {
                     current.setVy(0);
                     current.drop(board);
+                } else if (e.getKeyCode() == KeyEvent.VK_UP) {
+                	current.rotate(board);
                 }
             }
 
@@ -97,7 +103,7 @@ public class Board extends JPanel {
                     current.setVy(0);
                 } else if (e.getKeyCode() == KeyEvent.VK_DOWN) {
                     current.setVy(30);
-                }
+                } 
             }
         });
 
@@ -122,7 +128,9 @@ public class Board extends JPanel {
             }
         }
         pieces = new PieceSequence();
+        int oldSize = pieces.getSize();
         current = pieces.curr();
+        next.firePropertyChange("numPieces", oldSize, pieces.getSize());
 
         // Make sure that this component has the keyboard focus
         requestFocusInWindow();
@@ -131,6 +139,18 @@ public class Board extends JPanel {
     public void startOver() {
         this.writeLinesToFile(this.boardToStrings(new int[20][10]), "files/save.csv", false);
         this.reset();
+    }
+    
+    public void pausePlay() {
+    	String currentStatus = status.getText();
+    	if (currentStatus.equals("Running...")) {
+    		playing = false;
+    		status.setText("Paused");
+    	} else {
+    		status.setText("Running...");
+    		playing = true;
+    		requestFocusInWindow();
+    	}
     }
 
     public PieceSequence getNextPieces() {
@@ -162,7 +182,7 @@ public class Board extends JPanel {
             if (current.isMoving() && current.notBottomBlocked(board)) {
                 current.setVy(30);
             }
-
+            
             if (!current.isMoving()) {
                 for (int i = 0; i < coordinates.length; i++) {
                     board[coordinates[i].getY() / 30][coordinates[i].getX() / 30] = current.getId();
@@ -171,28 +191,46 @@ public class Board extends JPanel {
             for (int i = 0; i < board.length; i++) {
                 if (isFull(board[i])) {
                     rowClear = i;
+                    clearRows.add(i);
                 }
             }
             if (!current.isMoving() && isFull(board[rowClear])) {
-                this.clearLine(rowClear);
+//                this.clearLine(rowClear);
+            	for (int i = 0; i < clearRows.size(); i++) {
+            		this.clearLine(clearRows.get(i));
+            	}
+            	clearRows = new LinkedList<Integer>();
             }
             if (!current.isMoving()) {
                 this.writeLinesToFile(this.boardToStrings(this.board), "files/save.csv", false);
                 current = pieces.curr();
+                int oldSize = pieces.getSize();
                 pieces.generate();
+                next.firePropertyChange("numPieces", oldSize, pieces.getSize());
             }
             if (current.isMoving() && !current.notOverlapping(board)) {
-                playing = false;
-                status.setText("Game Over");
-                this.writeLinesToFile(
-                        this.boardToStrings(new int[20][10]), "files/save.csv", false
-                );
-
+//            	current.tryAdjust(board);
+            	if (!current.notOverlapping(board)) {
+	            	playing = false;
+	                status.setText("Game Over");
+	                this.writeLinesToFile(
+	                        this.boardToStrings(new int[20][10]), "files/save.csv", false
+	                );
+            	}
             }
+            
             // update the display
             repaint();
 
         }
+    }
+    
+    public void addPropertyChangeListener(PropertyChangeListener listener) {
+        next.addPropertyChangeListener(listener);
+    }
+    
+    public void removePropertyChangeListener(PropertyChangeListener listener) {
+        next.removePropertyChangeListener(listener);
     }
 
     public void clearLine(int row) {

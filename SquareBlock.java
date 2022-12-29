@@ -16,10 +16,6 @@ public class SquareBlock extends Piece {
         coordinates[3] = new Position(this.getPx() + 30, this.getPy());
         this.setCoordinates(coordinates);
     }
-    
-    @Override
-    public void rotate() {
-    }
 
     public void updateCoordinates() {
         this.coordinates = new Position[4];
@@ -44,5 +40,15 @@ public class SquareBlock extends Piece {
             }
         }
     }
+
+	@Override
+	public void updateCoords() {
+		this.coordinates = new Position[4];
+        coordinates[0] = new Position(this.getPx(), this.getPy());
+        coordinates[1] = new Position(this.getPx(), this.getPy() + 30);
+        coordinates[2] = new Position(this.getPx() + 30, this.getPy() + 30);
+        coordinates[3] = new Position(this.getPx() + 30, this.getPy());
+        this.setCoordinates(coordinates);
+	}
 
 }

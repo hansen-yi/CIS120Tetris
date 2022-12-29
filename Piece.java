@@ -1,6 +1,7 @@
 package org.cis120.tetris;
 
 import java.awt.Graphics;
+import java.util.Arrays;
 import java.util.TreeMap;
 
 public abstract class Piece {
@@ -26,6 +27,11 @@ public abstract class Piece {
     private boolean rotated;
 
     private Position[] coordinates;
+    
+    private int[] xAxis;
+    private int[] yAxis;
+    protected int courtWidth;
+    protected int courtHeight;
 
     /**
      * Constructor
@@ -47,7 +53,34 @@ public abstract class Piece {
         this.blockId = blockId;
 
         this.rotated = false;
+        
+        this.xAxis = new int[]{1, 0};
+        this.yAxis = new int[]{0, 1};
+        this.courtWidth = courtWidth;
+        this.courtHeight = courtHeight;
     }
+    
+//    public Piece(Piece other) {
+//    	this.pace = other.pace;
+//        this.vy = other.vy;
+//        this.vx = other.vx;
+//        this.px = other.px;
+//        this.py = other.py;
+//
+//        this.maxX = other.maxX;
+//        this.maxY = other.maxY;
+//
+//        this.moving = other.moving;
+//
+//        this.blockId = other.blockId;
+//
+//        this.rotated = other.rotated;
+//        
+//        this.xAxis = other.xAxis;
+//        this.yAxis = other.yAxis;
+//        this.courtWidth = other.courtWidth;
+//        this.courtHeight = other.courtHeight;
+//    }
 
     /***
      * GETTERS
@@ -149,6 +182,11 @@ public abstract class Piece {
     public int getYDiffFromIntial(Position other) {
         int y = other.getY();
         return y - this.py;
+    }
+    
+    public int getXDiffFromIntial(Position other) {
+        int x = other.getX();
+        return x - this.px;
     }
 
     /**************************************************************************
@@ -346,9 +384,145 @@ public abstract class Piece {
         this.set += 500;
     }
 
-    public void rotate() {
+    public void rotate(int[][] board) {
+        int[] x = this.getxAxis();
+        int[] y = this.getyAxis();
+        if (Arrays.equals(x, new int[]{1, 0}) && Arrays.equals(y, new int[]{0, 1})) {
+        	this.setxAxis(new int[]{0, 1});
+        	this.setyAxis(new int[]{-1, 0});
+        } else if (Arrays.equals(x, new int[]{0, 1}) && Arrays.equals(y, new int[]{-1, 0})) {
+        	this.setxAxis(new int[]{-1, 0});
+        	this.setyAxis(new int[]{0, -1});
+        } else if (Arrays.equals(x, new int[]{-1, 0}) && Arrays.equals(y, new int[]{0, -1})) {
+        	this.setxAxis(new int[]{0, -1});
+        	this.setyAxis(new int[]{1, 0});
+        } else if (Arrays.equals(x, new int[]{0, -1}) && Arrays.equals(y, new int[]{1, 0})) {
+        	this.setxAxis(new int[]{1, 0});
+        	this.setyAxis(new int[]{0, 1});
+        }
     }
 
     public abstract void draw(Graphics g);
+    
+    public abstract void updateCoords();
+
+	public int[] getxAxis() {
+		return xAxis;
+	}
+
+	public void setxAxis(int[] xAxis) {
+		this.xAxis = xAxis;
+	}
+
+	public int[] getyAxis() {
+		return yAxis;
+	}
+
+	public void setyAxis(int[] yAxis) {
+		this.yAxis = yAxis;
+	}
+	
+	public void tryAdjust(int[][] board) {
+		int overlap = 0;
+		for (int i = 0; i < coordinates.length; i++) {
+			int x = coordinates[i].getX();
+			int y = coordinates[i].getY();
+			if (board[y / 30][x / 30] != 0 ) {
+				overlap++;
+			}
+		}
+		if (overlap == 0) {
+			return;
+		}
+		int leftX = 0;
+		int rightX = (board[0].length - 1) * 30;
+		int topY = 0;
+		int bottomY = (board.length - 1) * 30;
+		for (int i = 0; i < coordinates.length; i++) {
+			int x = coordinates[i].getX();
+			int y = coordinates[i].getY();
+			leftX = Math.min(leftX, x);
+			rightX = Math.max(rightX, x);
+			topY = Math.min(topY, y);
+			bottomY = Math.max(bottomY, y);
+		}
+		if (leftX < 0 || rightX > (board[0].length - 1) * 30 || topY < 0 || bottomY > (board.length - 1) * 30) {
+			if (leftX < 0) {
+				for (int i = 0; i < this.coordinates.length; i++) {
+		        	coordinates[i].setX(coordinates[i].getX() - leftX);
+		        }
+			}
+			if (rightX > (board[0].length - 1) * 30) {
+				for (int i = 0; i < this.coordinates.length; i++) {
+					int dX = rightX - (board[0].length - 1) * 30;
+		        	coordinates[i].setX(coordinates[i].getX() - dX);
+		        }
+			}
+			if (topY < 0) {
+				for (int i = 0; i < this.coordinates.length; i++) {
+		        	coordinates[i].setY(coordinates[i].getY() - topY);
+		        }
+			}
+			if (bottomY < (board.length - 1) * 30) {
+				for (int i = 0; i < this.coordinates.length; i++) {
+					int dY = bottomY - (board.length - 1) * 30;
+		        	coordinates[i].setY(coordinates[i].getY() - dY);
+		        }
+			}
+		} else {
+			int dRow = 0;
+	        Position[] bottoms = this.getBottomPositions(coordinates);
+	        for (int i = 0; i < bottoms.length; i++) {
+	        	int currY = bottoms[i].getY();
+	            for (int j = currY / 30; j > -1; j--) {
+	                if (board[j][bottoms[i].getX() / 30] == 0 && currY / 30 - j >= dRow) {
+	                    dRow = currY / 30 - j;
+	                    break;
+	                }
+	            }
+	        }
+	        for (int i = 0; i < this.coordinates.length; i++) {
+	        	coordinates[i].setY(coordinates[i].getY() - dRow * 30);
+	        }
+		}
+		
+	}
+	
+	public void adjust() {
+		int leftX = 0;
+		int rightX = 270;
+		int topY = 0;
+		int bottomY = 570;
+		for (int i = 0; i < coordinates.length; i++) {
+			int x = coordinates[i].getX();
+			int y = coordinates[i].getY();
+			leftX = Math.min(leftX, x);
+			rightX = Math.max(rightX, x);
+			topY = Math.min(topY, y);
+			bottomY = Math.max(bottomY, y);
+		}
+		if (leftX < 0) {
+			for (int i = 0; i < this.coordinates.length; i++) {
+	        	coordinates[i].setX(coordinates[i].getX() - leftX);
+	        }
+		}
+		if (rightX > 270) {
+			for (int i = 0; i < this.coordinates.length; i++) {
+				int dX = rightX - 270;
+	        	coordinates[i].setX(coordinates[i].getX() - dX);
+	        }
+		}
+		if (topY < 0) {
+			for (int i = 0; i < this.coordinates.length; i++) {
+	        	coordinates[i].setY(coordinates[i].getY() - topY);
+	        }
+		}
+		if (bottomY > 570) {
+			for (int i = 0; i < this.coordinates.length; i++) {
+				int dY = bottomY - 570;
+	        	coordinates[i].setY(coordinates[i].getY() - dY);
+	        }
+		}
+	}
 
 }
